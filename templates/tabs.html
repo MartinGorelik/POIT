@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Sinus</title>
+    <!-- http://jqueryui.com/tabs/#mouseover -->
+    <link rel="stylesheet" href="static/jquery-ui.min.css">
+    <script src="static/jquery-3.2.1.min.js"></script>
+    <script src="static/jquery-ui.min.js"></script>
+    <script src="static/gauge.min.js"></script>
+    <script src="static/plotly-latest.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+    <script>
+        $(document).ready(function() {
+          var x = new Array();
+          var y = new Array();
+          var y2 = new Array();
+          var trace;
+          var trace2;
+          var layout;
+		//var pole = new Array();
+          namespace = '/test';
+          var socket = null;
+          var gauge = new RadialGauge({
+              renderTo: 'canvasID',
+              width: 300,
+              height: 300,
+              units: "U1[V]",
+              minValue: -5,
+              maxValue: 5,
+              majorTicks: [
+                  "-5",
+                  "-4",
+                  "-3",
+                  "-2",
+                  "-1",
+                  "0",
+                  "1",
+                  "2",
+                  "3",
+                  "4",
+                  "5"
+              ],
+              minorTicks: 2,
+              strokeTicks: true,
+              highlights: [
+                  {
+                      "from": 4,
+                      "to": 5,
+                      "color": "rgba(200, 50, 50, .75)"
+                  },
+                  {
+                      "from": -5,
+                      "to": -4,
+                      "color": "rgba(200, 50, 50, .75)"
+                  }
+              ],
+              colorPlate: "#fff",
+              borderShadowWidth: 0,
+              borders: false,
+              needleType: "arrow",
+              needleWidth: 2,
+              needleCircleSize: 7,
+              needleCircleOuter: true,
+              needleCircleInner: false,
+              animationDuration: 1500,
+              animationRule: "linear"
+          });
+          gauge.value = "0";
+          gauge.draw();
+          
+          var gauge2 = new RadialGauge({
+              renderTo: 'canvasID2',
+              width: 300,
+              height: 300,
+              units: "U2[V]",
+              minValue: -5,
+              maxValue: 5,
+              majorTicks: [
+                  "-5",
+                  "-4",
+                  "-3",
+                  "-2",
+                  "-1",
+                  "0",
+                  "1",
+                  "2",
+                  "3",
+                  "4",
+                  "5"
+              ],
+              minorTicks: 2,
+              strokeTicks: true,
+              highlights: [
+                  {
+                      "from": 4,
+                      "to": 5,
+                      "color": "rgba(200, 50, 50, .75)"
+                  },
+                  {
+                      "from": -5,
+                      "to": -4,
+                      "color": "rgba(200, 50, 50, .75)"
+                  }
+              ],
+              colorPlate: "#fff",
+              borderShadowWidth: 0,
+              borders: false,
+              needleType: "arrow",
+              needleWidth: 2,
+              needleCircleSize: 7,
+              needleCircleOuter: true,
+              needleCircleInner: false,
+              animationDuration: 1500,
+              animationRule: "linear"
+          });
+          gauge2.value = "0";
+          gauge2.draw();
+          
+        $('form#emit').hide();
+          $('form#emit').submit(function(event) {
+              socket.emit('my_event', {value: $('#emit_value').val()});
+              return false; });
+          $('form#canvasID').hide();
+          
+         $('#buttonVal').hide();
+           $('#buttonVal').click(function(event) {
+          //console.log($('#buttonVal').val());
+          socket.emit('db_event', {value: $('#buttonVal').val()});
+          if ($(this).val() == "start") {
+            $(this).val("stop");
+            $(this).text("Stop");
+          }
+          else {
+            $(this).val("start");
+            $(this).text("Start");
+          }
+          return false; }); 
+          
+          $("#button").click(function(){
+            vec = $("#button");
+            if(vec.val() == "start"){
+                        $('form#emit').show();
+                        $('#buttonVal').show();
+                socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+                socket.on('connect', function() {
+                    socket.emit('my_event', {data: 'I\'m connected!', value: 0});
+				});
+				
+                socket.on('my_response', function(msg) {
+                    console.log(msg.data);
+                    
+                    if(msg.data == "Connected" || msg.data == "Disconnected"){
+                        $("#log").append(msg.data+"<br>");                                           
+                    }
+                    else if(msg.ampl == 1){
+                        $("#log").append("Amplituda: "+msg.data+"<br>");  
+                        }
+                    else{
+                        $('#log').append('t: '+msg.count+' \tU1:'+msg.data+' \tU2:'+msg.data2+'<br>').html();
+						//var tempArray = {'t: '+msg.count+'U1:':msg.data.trim()'U2:'+:msg.data2.trim())};
+						//pole.push(tempArray)
+                     x.push(parseFloat(msg.count));
+                    y.push(parseFloat(msg.data));
+                    y2.push(parseFloat(msg.data2));
+					} 
+                    gauge.value = msg.data; 
+                    gauge2.value = msg.data2;      
+                    
+          
+                    trace = {
+                        x: x,
+                        y: y,
+                    };    
+                    trace2 = {
+                        x: x,
+                        y: y2,
+                    };     
+                    layout = {
+                      title: 'Priebehy',
+                      xaxis: {
+                          title: 'x',
+                      },
+                      yaxis: {
+                          title: 'y',
+                          //range: [-1,1]
+                      }
+                    };
+                    console.log(trace);
+                    var traces = new Array();
+                    traces.push(trace);
+                    traces.push(trace2);
+                    Plotly.newPlot($('#plotdiv')[0], traces, layout);
+               });
+                vec.val("stop")
+                vec.text("Close and Disconect");
+            }else{
+                $('form#emit').hide();
+                $('#buttonVal').hide();
+                socket.emit('disconnect_request');
+                vec.val("start");
+                vec.text("Open");
+            }
+          })
+          $(function() {
+                $("#tabs").tabs({
+                    event: "mouseover"
+                });
+            });
+        });
+		//$('#buttond').hide();
+           //$('#buttond').click(function(event) {
+          //socket.emit('save', {value: JSON.stringify(pole)});
+          //return false; }); 
+      
+    </script>
+</head>
+
+<body>
+
+    <div id="tabs">
+        <ul>
+            <li><a href="#tabs-1">Ovladanie</a></li>
+            <li><a href="#tabs-2">Graf sin+cos</a></li>
+            <li><a href="#tabs-3">Ukazovatel</a></li>
+        </ul>
+        <div id="tabs-1">
+            <h1>ovladanie</h1>
+            <form id="emit" method="POST" action='#'>
+                <h2>Send:</h2>
+                <input type="text" name="emit_value" id="emit_value" placeholder="Amplituda">
+                <input type="submit" value="Send">
+            </form>
+            <button id="buttonVal" type="submit" value="start">Start</button>
+            <button id="button" value="start">Open</button>
+            <h2>Receive:</h2>
+            <div id="log"></div>
+        </div>
+        <div id="tabs-2">
+           <h2>Graf sinus + cosinus</h2>
+            <div id="plotdiv" style="width:600px;height:250px;"></div>
+        </div>
+        <div id="tabs-3">
+              <canvas id="canvasID"></canvas>
+              <canvas id="canvasID2"></canvas>
+        </div>
+    </div>
+
+</body>
+
+</html>
